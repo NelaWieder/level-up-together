@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Level Up Together</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #020617; /* Slate-950 */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .hidden { display: none; }
+        
+        .gold-gradient {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .gold-text {
+            background: linear-gradient(to bottom right, #fef08a, #eab308);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .bg-card { 
+            background: rgba(30, 41, 59, 0.4); 
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(234, 179, 8, 0.1); 
+        }
+
+        .gold-glow { 
+            box-shadow: 0 0 25px rgba(234, 179, 8, 0.1); 
+        }
+
+        .active-tab {
+            color: #eab308;
+            transform: translateY(-2px);
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .modal-content { width: 95%; margin: 10px; }
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen pb-28">
+
+<header class="p-6 border-b border-yellow-900/20 bg-slate-950/90 sticky top-0 z-40 backdrop-blur-xl">
+    <div class="flex justify-between items-center max-w-2xl mx-auto gap-4">
+        <div class="flex-shrink-0"> <h1 class="text-xl font-800 tracking-tighter uppercase italic gold-text whitespace-nowrap">Level Up Together</h1>
+            <p id="sync-indicator" class="text-[9px] text-red-500 font-bold uppercase tracking-[0.2em] mt-0.5">Offline Mode</p>
+        </div>
+        <div class="flex-1 flex justify-end items-center gap-3">
+            <p id="gold-count" class="text-yellow-500 font-bold text-xl tracking-tighter">💰 0</p>
+            <div class="w-20 bg-slate-800 h-1 rounded-full overflow-hidden">
+                <div id="global-progress-bar" class="bg-yellow-500 h-full transition-all duration-1000" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+</header>
+
+    <main id="page-home" class="p-4 max-w-2xl mx-auto space-y-6 pt-4 animate-in fade-in duration-500">
+        
+        <button onclick="drawAll()" class="w-full gold-gradient p-5 rounded-[2rem] shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all">
+            <span class="text-2xl">🎲</span>
+            <span class="font-900 uppercase tracking-widest text-sm text-slate-950">Losuj quest z dowolnej kategorii</span>
+        </button>
+
+        <div id="categories-grid" class="grid grid-cols-1 gap-4">
+            </div>
+    </main>
+
+    <main id="page-log" class="hidden p-4 max-w-2xl mx-auto pb-10">
+        <h2 class="text-2xl font-800 mb-8 px-2 uppercase tracking-tighter italic">Quest Log</h2>
+        <div id="quest-archive" class="space-y-8"></div>
+    </main>
+
+    <main id="page-rules" class="hidden p-6 max-w-2xl mx-auto space-y-8">
+        <section class="bg-card p-6 rounded-[2.5rem]">
+            <h2 class="text-xl font-800 mb-6 gold-text uppercase italic">Game Mechanics</h2>
+            <div class="space-y-6 text-sm text-slate-300">
+                <div class="flex gap-4 items-start">
+                    <div class="bg-yellow-500/10 p-2 rounded-lg text-yellow-500">⚔️</div>
+                    <p><strong>Turn-based Combat:</strong> Czytamy pytania na zmianę. Quest Master (trzymający telefon) rzuca pierwszy czar – odpowiada jako pierwsza.</p>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <div class="bg-yellow-500/10 p-2 rounded-lg text-yellow-500">🎮</div>
+                    <p><strong>Full Party Participation:</strong> Nie ma skipowania cutscenek! Oboje gracie w tę misję, więc każda odpowiedź musi wybrzmieć.</p>
+                </div>
+                <div class="flex gap-4 items-start border-l-2 border-yellow-600 pl-4 bg-yellow-600/5 py-3 rounded-r-xl">
+                    <p><strong class="text-yellow-500 uppercase text-[10px] tracking-widest block mb-1">Zasada Echa:</strong> Zanim Ty odpowiesz, streść w jednym zdaniu to, co usłyszałeś od partnera. Twoje uszy to najważniejszy kontroler.</p>
+                </div>
+            </div>
+        </section>
+        
+        <section class="bg-card p-6 rounded-[2.5rem] border border-yellow-900/30">
+            <h3 class="font-bold mb-1 text-slate-100 uppercase text-xs tracking-widest italic">Save Slot (Sync)</h3>
+            <p class="text-[10px] text-slate-500 mb-6 uppercase font-bold tracking-tighter">Wpisz nazwę zapisu, aby postępy nigdy nie zginęły.</p>
+            <input id="room-key-input" type="text" placeholder="Wpisz nazwę kampanii..." class="w-full p-5 rounded-2xl bg-slate-900 border border-slate-700 mb-4 focus:outline-none focus:border-yellow-500 transition-colors text-yellow-500 font-mono text-center shadow-inner">
+            <button onclick="connectToRoom()" class="w-full bg-slate-100 text-slate-950 p-5 rounded-2xl font-900 transition-all active:scale-95 shadow-lg text-xs uppercase tracking-widest">Załaduj kampanię</button>
+            
+            <div class="pt-8 mt-4 border-t border-slate-800">
+                <button onclick="resetProgress()" class="w-full text-red-500/40 hover:text-red-500 p-2 text-[9px] font-bold uppercase tracking-[0.2em] transition-all">
+                    Hard Reset (Wyczyść kampanię)
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal" class="hidden fixed inset-0 z-50 bg-slate-950/98 p-6 flex items-center justify-center backdrop-blur-md">
+        <div class="bg-slate-900 w-full max-w-md p-10 rounded-[3rem] border border-yellow-600/30 shadow-[0_0_50px_rgba(234,179,8,0.1)] text-center">
+            <p id="modal-cat" class="text-yellow-500 text-[10px] uppercase tracking-[0.4em] font-bold mb-8 opacity-60"></p>
+            <h2 id="modal-text" class="text-2xl font-semibold leading-relaxed mb-12 text-slate-100"></h2>
+            <div class="space-y-4">
+                <button onclick="confirmQuest(true)" class="w-full gold-gradient p-5 rounded-2xl font-900 text-slate-950 shadow-xl active:scale-95 transition-all">ZALICZ QUEST (+10G)</button>
+                <button onclick="confirmQuest(false)" class="w-full bg-slate-800 p-4 rounded-2xl font-bold text-slate-500 active:scale-95 transition-all text-xs uppercase tracking-widest">Pomiń w tej sesji</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-950/80 border-t border-slate-900 p-4 flex justify-around backdrop-blur-2xl z-40">
+        <button onclick="navTo('home')" id="nav-home" class="p-2 flex flex-col items-center gap-1 transition-all">
+            <span class="text-2xl">⚔️</span>
+            <span class="text-[9px] uppercase font-bold tracking-tighter opacity-50">Mapa</span>
+        </button>
+        <button onclick="navTo('log')" id="nav-log" class="p-2 flex flex-col items-center gap-1 transition-all">
+            <span class="text-2xl">📜</span>
+            <span class="text-[9px] uppercase font-bold tracking-tighter opacity-50">Log</span>
+        </button>
+        <button onclick="navTo('rules')" id="nav-rules" class="p-2 flex flex-col items-center gap-1 transition-all">
+            <span class="text-2xl">⚙️</span>
+            <span class="text-[9px] uppercase font-bold tracking-tighter opacity-50">Opcje</span>
+        </button>
+    </nav>
+
+    <script src="questions.js"></script>
+    <script>
+        // --- KONFIGURACJA SUPABASE ---
+        const SB_URL = "https://ynolaexjspyucqwgsswp.supabase.co";
+        const SB_KEY = "sb_publishable_E8Q0-npWxiMAXhHJ4jOONA_jtSYRku9";
+        const sb = supabase.createClient(SB_URL, SB_KEY);
+
+const catData = {
+    "Character Creator": { 
+        icon: "👤", 
+        desc: "Wgląd w Wasze unikalne statystyki: od cech OP po ewolucję postaci w trakcie trwania wspólnej kampanii." 
+    },
+    "Ping Test": { 
+        icon: "📡", 
+        desc: "Kalibracja łącza: optymalizacja metod komunikacji, aby wyeliminować lagi i błędy w przesyłaniu emocji." 
+    },
+    "Daily Questy": { 
+        icon: "☕", 
+        desc: "Codzienne buffy bliskości: mikro-rytuały i małe gesty, które odnawiają manę na każdy kolejny dzień." 
+    },
+    "Late Game": { 
+        icon: "🏰", 
+        desc: "Strategia na najwyższy poziom: projektowanie wspólnej bazy, wartości i planów na przyszłe sezony." 
+    },
+    "Hardcore Mode": { 
+        icon: "🛡️", 
+        desc: "Survival mode: wspólne zarządzanie goldem i przygotowanie strategii na najtrudniejsze boss fighty w życiu." 
+    },
+    "Secret Levels": { 
+        icon: "🔑", 
+        desc: "Hidden areas: odkrywanie mapy intymności i sekretnych rytuałów dostępnych tylko dla graczy premium." 
+    }
+};
+
+        let state = { gold: 0, completed_ids: [], room_key: localStorage.getItem('duo_quest_room') || "" };
+        let activeQ = null;
+
+        async function connectToRoom() {
+            const key = document.getElementById('room-key-input').value.trim();
+            if(!key) return;
+            const { data } = await sb.from('game_sessions').select('*').eq('room_key', key).single();
+            if(data) state = { ...data };
+            else {
+                const { data: created } = await sb.from('game_sessions').insert([{ room_key: key, gold: 0, completed_ids: [] }]).select().single();
+                state = { ...created };
+            }
+            localStorage.setItem('duo_quest_room', key);
+            document.getElementById('sync-indicator').innerText = "LIVE: " + key;
+            document.getElementById('sync-indicator').classList.replace('text-red-500', 'text-green-500');
+            updateUI();
+            navTo('home');
+        }
+
+        async function save() {
+            if(!state.room_key) return;
+            await sb.from('game_sessions').update({ gold: state.gold, completed_ids: state.completed_ids }).eq('room_key', state.room_key);
+        }
+
+        async function resetProgress() {
+            if(!state.room_key) return;
+            if(confirm("Czy na pewno chcesz wyczyścić tę kampanię?") && confirm("Wszystkie dane przepadną. Jesteś pewna?")) {
+                state.gold = 0; state.completed_ids = [];
+                await save();
+                updateUI();
+                navTo('home');
+            }
+        }
+
+        function navTo(page) {
+            ['home', 'rules', 'log'].forEach(p => {
+                document.getElementById('page-'+p).classList.add('hidden');
+                document.getElementById('nav-'+p).classList.remove('active-tab');
+            });
+            document.getElementById('page-'+page).classList.remove('hidden');
+            document.getElementById('nav-'+page).classList.add('active-tab');
+            if(page === 'log') renderLog();
+            if(page === 'home') renderCats();
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+function renderCats() {
+    const grid = document.getElementById('categories-grid');
+    grid.innerHTML = '';
+    categories.forEach(cat => {
+        const qInCat = questions.filter(q => q.category === cat);
+        const doneCount = qInCat.filter(q => state.completed_ids.includes(q.id)).length;
+        const progress = Math.round((doneCount / qInCat.length) * 100);
+        
+        grid.innerHTML += `
+            <div class="bg-card p-6 rounded-[2rem] flex items-center gap-5 gold-glow transition-all active:scale-[0.98]">
+                <div class="text-4xl p-3 bg-slate-900/50 rounded-2xl shadow-inner flex-shrink-0">${catData[cat].icon}</div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-900 text-[10px] uppercase tracking-widest text-yellow-600 mb-1 leading-none">${cat}</h3>
+                    <p class="text-[11px] text-slate-500 leading-normal mb-3 pr-2">${catData[cat].desc}</p>
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl font-black text-white italic">${progress}%</span>
+                        <div class="flex-1 bg-slate-800 h-1 rounded-full overflow-hidden">
+                            <div class="bg-yellow-600 h-full" style="width: ${progress}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="draw('${cat}')" class="bg-yellow-600/10 hover:bg-yellow-600 border border-yellow-600/20 text-yellow-500 hover:text-slate-950 px-4 py-3 rounded-xl font-900 text-[10px] uppercase tracking-tighter transition-all flex-shrink-0">START</button>
+            </div>
+        `;
+    });
+}
+
+        function draw(cat) {
+            const pool = questions.filter(q => q.category === cat && !state.completed_ids.includes(q.id));
+            if(pool.length === 0) return alert("Poziom ukończony!");
+            activeQ = pool[Math.floor(Math.random() * pool.length)];
+            showModal();
+        }
+
+        function drawAll() {
+            const pool = questions.filter(q => !state.completed_ids.includes(q.id));
+            if(pool.length === 0) return alert("Cała gra ukończona! Jesteście niesamowici!");
+            activeQ = pool[Math.floor(Math.random() * pool.length)];
+            showModal();
+        }
+
+        function showModal() {
+            document.getElementById('modal-cat').innerText = activeQ.category;
+            document.getElementById('modal-text').innerText = activeQ.text;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function confirmQuest(success) {
+            if(success) {
+                state.completed_ids.push(activeQ.id);
+                state.gold += 10;
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.8 }, colors: ['#fbbf24', '#ffffff'] });
+                save();
+            }
+            document.getElementById('modal').classList.add('hidden');
+            updateUI();
+        }
+
+        function renderLog() {
+            const arc = document.getElementById('quest-archive');
+            arc.innerHTML = '';
+            categories.forEach(cat => {
+                const qs = questions.filter(q => q.category === cat);
+                const section = document.createElement('div');
+                section.innerHTML = `<h3 class="text-[10px] font-900 text-yellow-600 uppercase tracking-[0.3em] mb-4 px-2">${cat}</h3>`;
+                const list = document.createElement('div');
+                list.className = "space-y-3";
+                qs.forEach(q => {
+                    const done = state.completed_ids.includes(q.id);
+                    list.innerHTML += `
+                        <div class="bg-slate-900/40 p-5 rounded-2xl text-[13px] leading-relaxed ${done ? 'opacity-40 line-through italic border-l-2 border-green-900' : 'border-l-2 border-slate-700'}">
+                            <span class="mr-2">${done ? '✅' : '🔘'}</span> ${q.text}
+                        </div>`;
+                });
+                section.appendChild(list);
+                arc.appendChild(section);
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('gold-count').innerText = `💰 ${state.gold}`;
+            const totalProgress = Math.round((state.completed_ids.length / questions.length) * 100);
+            document.getElementById('global-progress-bar').style.width = totalProgress + '%';
+            renderCats();
+        }
+
+        if(state.room_key) connectToRoom();
+        else renderCats();
+        navTo('home');
+    </script>
+</body>
+</html>
