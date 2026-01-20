@@ -16,6 +16,7 @@
             color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
             overflow-x: hidden;
+            padding-top: env(safe-area-inset-top);
         }
 
         .gold-text {
@@ -34,33 +35,41 @@
             border: 1px solid rgba(234, 179, 8, 0.1); 
         }
 
-        .gold-glow { box-shadow: 0 0 25px rgba(234, 179, 8, 0.1); }
+        .active-tab { color: #eab308; border-bottom: 2px solid #eab308; }
         .hidden { display: none; }
-        .active-tab { color: #eab308; }
 
-        @keyframes float-gold {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-70px) scale(1.3); opacity: 0; }
+        /* iPhone Shake Effect */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-8px); }
+            80% { transform: translateX(8px); }
         }
-        .gold-anim { position: fixed; pointer-events: none; animation: float-gold 1s ease-out forwards; color: #eab308; font-weight: 900; z-index: 1000; font-size: 1.2rem; }
+        .shake { animation: shake 0.3s ease-in-out; border-color: #ef4444 !important; }
+
+        /* Floating Gold Animation */
+        @keyframes float-up {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-100px); opacity: 0; }
+        }
+        .gold-float { position: fixed; pointer-events: none; animation: float-up 1s forwards; color: #eab308; font-weight: 900; z-index: 1000; }
 
         #achievement-popup {
-            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transform: translateY(-150%);
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateY(-200%);
         }
         #achievement-popup.show { transform: translateY(0); }
-
-        textarea { resize: none; border-radius: 1rem; }
     </style>
 </head>
-<body class="min-h-screen pb-28 text-left">
+<body class="min-h-screen pb-32 text-left">
 
-    <div id="achievement-popup" class="fixed top-6 left-0 right-0 z-[100] px-6 flex justify-center pointer-events-none">
-        <div class="bg-slate-900 border-2 border-yellow-500 p-4 rounded-2xl shadow-2xl flex items-center gap-4 max-w-sm w-full gold-glow">
-            <div class="text-3xl" id="ach-icon">🏆</div>
+    <div id="achievement-popup" class="fixed top-12 left-0 right-0 z-[100] px-6 flex justify-center pointer-events-none">
+        <div class="bg-slate-900 border-2 border-yellow-500 p-4 rounded-3xl shadow-2xl flex items-center gap-4 max-w-sm w-full">
+            <div class="text-4xl" id="ach-icon">🏆</div>
             <div class="text-left">
-                <p class="text-[10px] font-black text-yellow-500 uppercase tracking-widest leading-none mb-1">New Achievement!</p>
-                <p class="text-sm font-bold text-white leading-tight" id="ach-name">Nazwa</p>
+                <p class="text-[10px] font-black text-yellow-500 uppercase tracking-[0.2em] leading-none mb-1">New Milestone!</p>
+                <p class="text-sm font-bold text-white leading-tight" id="ach-name">Osiągnięcie</p>
             </div>
         </div>
     </div>
@@ -69,117 +78,122 @@
         <div class="flex justify-between items-center max-w-2xl mx-auto gap-4">
             <div class="flex-shrink-0 text-left">
                 <h1 class="text-xl font-900 tracking-tighter uppercase italic gold-text whitespace-nowrap">Level Up Together</h1>
-                <p id="sync-indicator" class="text-[9px] text-red-500 font-bold uppercase tracking-[0.2em] mt-0.5">Brak Synchronizacji</p>
+                <p id="sync-indicator" class="text-[9px] text-red-500 font-bold uppercase tracking-[0.2em] mt-0.5">Brak Sesji</p>
             </div>
-            <div class="flex-1 flex justify-end items-center gap-3 text-right">
-                <p id="gold-count" class="text-yellow-500 font-bold text-xl font-mono tracking-tighter transition-all">💰 0</p>
-                <div class="w-16 bg-slate-800 h-1.5 rounded-full mt-1 overflow-hidden">
+            <div class="flex-1 flex justify-end items-center gap-3">
+                <p id="gold-count" class="text-yellow-500 font-bold text-xl font-mono tracking-tighter">💰 0</p>
+                <div class="w-16 bg-slate-800 h-1 rounded-full overflow-hidden">
                     <div id="global-progress-bar" class="bg-yellow-500 h-full transition-all duration-1000" style="width: 0%"></div>
                 </div>
             </div>
         </div>
     </header>
 
-    <main id="page-home" class="p-4 max-w-2xl mx-auto space-y-6 pt-4 animate-in fade-in duration-500">
-        <button onclick="drawAll()" class="w-full gold-gradient p-5 rounded-[2rem] shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all text-slate-950 font-900 uppercase tracking-widest text-xs">
-            <span class="text-2xl">🎲</span> Losuj quest z dowolnej kategorii
+    <main id="page-home" class="p-4 max-w-2xl mx-auto space-y-6 pt-4">
+        <button onclick="drawAll()" class="w-full gold-gradient p-6 rounded-[2.5rem] shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all text-slate-950 font-900 uppercase tracking-widest text-xs">
+            <span class="text-2xl">🎲</span> Losuj dowolny Quest
         </button>
         <div id="categories-grid" class="grid grid-cols-1 gap-4"></div>
     </main>
 
-    <main id="page-log" class="hidden p-4 max-w-2xl mx-auto pb-10">
-        <section class="mb-10 px-2 text-left">
-            <h2 class="text-xl font-900 mb-6 uppercase tracking-tighter italic gold-text">Relational Skill Tree</h2>
-            <div id="skill-tree" class="bg-card p-6 rounded-[2rem] space-y-4"></div>
+    <main id="page-log" class="hidden p-4 max-w-2xl mx-auto pb-10 text-left">
+        <section class="mb-10">
+            <h2 class="text-xl font-900 mb-6 uppercase gold-text italic">Skill Tree</h2>
+            <div id="skill-tree" class="bg-card p-6 rounded-[2.5rem] space-y-5"></div>
         </section>
 
-        <section class="mb-10 px-2 text-left">
-            <h2 class="text-lg font-900 mb-6 uppercase tracking-tighter italic text-slate-400">Sala Trofeów</h2>
-            <div id="trophy-grid" class="grid grid-cols-4 gap-4 bg-card p-6 rounded-[2rem]"></div>
+        <section class="mb-10">
+            <h2 class="text-lg font-900 mb-6 uppercase text-slate-500 italic">Trofea</h2>
+            <div id="trophy-grid" class="grid grid-cols-4 gap-4 bg-card p-6 rounded-[2.5rem]"></div>
         </section>
 
-        <h2 class="text-xl font-900 mb-6 px-2 uppercase tracking-tighter italic text-left">Vault of Lore (Archive)</h2>
+        <h2 class="text-xl font-900 mb-6 uppercase gold-text italic">Vault of Lore</h2>
         <div id="quest-archive" class="space-y-8"></div>
     </main>
 
-    <main id="page-rules" class="hidden p-6 max-w-2xl mx-auto space-y-8">
-        <section class="bg-card p-7 rounded-[2.5rem] border border-yellow-900/20 shadow-2xl text-left">
-            <h2 class="text-2xl font-900 mb-8 gold-text uppercase italic leading-none tracking-tighter">Manual:<br><span class="text-slate-100 text-lg uppercase">Jak nie zgliczować relacji</span></h2>
+    <main id="page-rules" class="hidden p-6 max-w-2xl mx-auto space-y-8 text-left">
+        <section class="bg-card p-8 rounded-[3rem] border border-yellow-900/20 shadow-2xl">
+            <h2 class="text-2xl font-900 mb-8 gold-text uppercase italic leading-none tracking-tighter text-left">Manual:<br><span class="text-slate-100 text-lg uppercase">Zasady Co-opa</span></h2>
+            
             <div class="space-y-8 text-sm text-slate-300">
-                <div class="flex gap-4 items-start">
-                    <div class="bg-yellow-500/10 p-2.5 rounded-xl text-yellow-500 font-bold">01</div>
-                    <div>
-                        <p class="font-bold text-slate-100 uppercase text-[11px] tracking-widest mb-1 text-left">Initiative Roll: Kolejność tur</p>
-                        <p class="leading-relaxed opacity-80 text-xs text-left">Quest Master wybiera kategorię i czyta pytanie. Odpowiada jako pierwszy, a potem przekazuje głos partnerowi.</p>
-                    </div>
-                </div>
-                <div class="flex gap-4 items-start">
-                    <div class="bg-yellow-500/10 p-2.5 rounded-xl text-yellow-500 font-bold">02</div>
-                    <div>
-                        <p class="font-bold text-slate-100 uppercase text-[11px] tracking-widest mb-1 text-left">Full Party Focus: Brak lagów</p>
-                        <p class="leading-relaxed opacity-80 text-xs text-left">Odstawiacie telefony i powiadomienia. Pełna obecność daje +100% do jakości sesji.</p>
-                    </div>
-                </div>
-                <div class="flex gap-4 items-start border-l-2 border-yellow-600 pl-5 bg-yellow-600/5 py-4 rounded-r-2xl">
-                    <div>
-                        <p class="font-black text-yellow-500 uppercase text-[11px] tracking-[0.2em] mb-1">Zasada Echa: Buff Zrozumienia</p>
-                        <p class="leading-relaxed text-slate-200 text-xs text-left">Zanim odpowiesz, streść wypowiedź partnera. To odblokowuje Twoją turę.</p>
-                    </div>
-                </div>
                 <div class="flex gap-4 items-start text-left">
-                    <div class="bg-yellow-500/10 p-2.5 rounded-xl text-yellow-500 font-bold">03</div>
+                    <div class="bg-yellow-500/10 p-3 rounded-xl text-yellow-500 font-bold">01</div>
                     <div>
-                        <p class="font-bold text-slate-100 uppercase text-[11px] tracking-widest mb-1 text-left">Tactical Retreat: Safe Zone</p>
-                        <p class="leading-relaxed opacity-80 text-xs text-left">Jeśli trudność Questa przekroczy Wasze HP (emocje), możecie kliknąć "Pomiń".</p>
+                        <p class="font-bold text-slate-100 uppercase text-[11px] tracking-widest mb-1">Initiative Roll</p>
+                        <p class="opacity-70 leading-relaxed">Quest Master (osoba z telefonem) czyta pytanie i odpowiada jako pierwszy. Potem następuje przekazanie tury.</p>
                     </div>
                 </div>
+
                 <div class="flex gap-4 items-start text-left">
-                    <div class="bg-yellow-500/10 p-2.5 rounded-xl text-yellow-500 font-bold text-yellow-500">04</div>
+                    <div class="bg-yellow-500/10 p-3 rounded-xl text-yellow-500 font-bold">02</div>
                     <div>
-                        <p class="font-bold text-slate-100 uppercase text-[11px] tracking-widest mb-1 text-yellow-500">Legendary Loot: Wspólna Baza</p>
-                        <p class="leading-relaxed opacity-90 text-yellow-100/70 text-xs italic">Każdy Gold to dowód, że budujecie relację, która jest Waszym najpotężniejszym "safe housem".</p>
+                        <p class="font-bold text-slate-100 uppercase text-[11px] tracking-widest mb-1 text-left">Full Party Focus</p>
+                        <p class="opacity-70 leading-relaxed text-left">Odstawiacie inne telefony. Pełna obecność daje +100% do jakości sesji i eliminuje lagi w komunikacji.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-start border-l-4 border-yellow-600 pl-5 bg-yellow-600/5 py-5 rounded-r-3xl text-left">
+                    <div>
+                        <p class="font-black text-yellow-500 uppercase text-[11px] tracking-[0.2em] mb-1">Zasada Echa</p>
+                        <p class="text-slate-200 leading-relaxed">Zanim odpowiesz, streść w jednym zdaniu to, co usłyszałeś od partnera. To odblokowuje Twoją turę odpowiedzi.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-start text-left">
+                    <div class="bg-yellow-500/10 p-3 rounded-xl text-yellow-500 font-bold">03</div>
+                    <div>
+                        <p class="font-bold text-slate-100 uppercase text-[11px] tracking-widest mb-1">Tactical Retreat</p>
+                        <p class="opacity-70 leading-relaxed text-left">Jeśli poziom trudności Questa przekroczy Wasze aktualne emocje, możecie kliknąć "Pomiń". Pytanie wróci do puli później.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-start text-left">
+                    <div class="bg-yellow-500/10 p-3 rounded-xl text-yellow-500 font-bold">04</div>
+                    <div>
+                        <p class="font-bold text-yellow-500 uppercase text-[11px] tracking-widest mb-1">Legendary Loot</p>
+                        <p class="opacity-80 italic text-yellow-100/60 leading-relaxed">Każdy Gold to dowód na budowanie relacji jako "safe house". Wygrywacie zawsze, wybierając szczerość.</p>
                     </div>
                 </div>
             </div>
-            <p class="mt-8 text-[10px] uppercase font-black tracking-[0.4em] gold-text opacity-50 text-center italic">The only way to lose is to stop playing together.</p>
+            <p class="mt-10 text-[10px] uppercase font-black tracking-[0.5em] gold-text opacity-50 text-center">The only way to lose is to stop playing together.</p>
         </section>
 
-        <section class="bg-card p-7 rounded-[2.5rem] border border-yellow-900/30">
-            <h3 class="font-bold mb-1 text-slate-100 uppercase text-[10px] tracking-widest italic text-left">Save Game Slot (Sync)</h3>
-            <input id="room-key-input" type="text" placeholder="Nazwa kampanii..." class="w-full p-5 rounded-2xl bg-slate-900 border border-slate-700 mb-4 focus:outline-none focus:border-yellow-500 text-yellow-500 font-mono text-center shadow-inner">
-            <button onclick="connectToRoom()" class="w-full bg-slate-100 text-slate-950 p-5 rounded-2xl font-900 transition-all active:scale-95 shadow-lg text-xs uppercase tracking-widest">Załaduj / Synchronizuj</button>
-            <div class="pt-8 mt-4 border-t border-slate-800 text-center">
-                <button onclick="resetProgress()" class="w-full text-red-500/40 hover:text-red-500 p-2 text-[9px] font-bold uppercase tracking-[0.2em] transition-all">Hard Reset (Wyczyść kampanię)</button>
+        <section class="bg-card p-8 rounded-[3rem] border border-yellow-900/30">
+            <h3 class="font-bold mb-1 text-slate-100 uppercase text-[10px] tracking-widest italic text-left text-left">Save Game Slot</h3>
+            <input id="room-key-input" type="text" placeholder="Nazwa Waszej kampanii..." class="w-full p-5 rounded-2xl bg-slate-900 border border-slate-700 mb-4 focus:outline-none focus:border-yellow-500 text-yellow-500 font-mono text-center shadow-inner">
+            <button onclick="connectToRoom()" class="w-full bg-slate-100 text-slate-950 p-5 rounded-2xl font-900 transition-all active:scale-95 text-xs uppercase tracking-widest shadow-xl">Załaduj kampanię</button>
+            <div class="pt-10 mt-5 border-t border-slate-800 text-center">
+                <button onclick="resetProgress()" class="w-full text-red-500/40 hover:text-red-500 p-2 text-[9px] font-bold uppercase tracking-[0.2em] transition-all italic">Hard Reset (Wyczyść wszystko)</button>
             </div>
         </section>
     </main>
 
     <div id="modal" class="hidden fixed inset-0 z-50 bg-slate-950/98 p-6 flex items-center justify-center backdrop-blur-md">
-        <div class="bg-slate-900 w-full max-w-md p-8 rounded-[3rem] border border-yellow-600/30 text-center shadow-2xl overflow-y-auto max-h-[90vh]">
-            <p id="modal-cat" class="text-yellow-500 text-[10px] uppercase tracking-[0.4em] font-bold mb-6 opacity-60"></p>
-            <h2 id="modal-text" class="text-xl font-semibold leading-relaxed mb-8 text-slate-100"></h2>
+        <div id="modal-container" class="bg-slate-900 w-full max-w-md p-8 rounded-[3.5rem] border border-yellow-600/30 text-center shadow-2xl overflow-y-auto max-h-[90vh]">
+            <p id="modal-cat" class="text-yellow-500 text-[10px] uppercase tracking-[0.5em] font-bold mb-6 opacity-60"></p>
+            <h2 id="modal-text" class="text-xl font-bold leading-relaxed mb-10 text-slate-100 px-2"></h2>
             
-            <div class="mb-8 text-left">
-                <label class="text-[10px] uppercase font-bold text-slate-500 tracking-widest mb-2 block text-left">Vault of Lore: Zapisz złotą myśl</label>
-                <textarea id="quest-note" placeholder="Co ważnego dzisiaj usłyszałaś?" class="w-full bg-slate-950 border border-slate-800 p-4 text-sm text-yellow-100/80 focus:border-yellow-600 outline-none h-24"></textarea>
+            <div class="mb-10 text-left">
+                <label class="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] mb-3 block text-left">Vault of Lore: Złota myśl</label>
+                <textarea id="quest-note" placeholder="Co ważnego dzisiaj usłyszałaś?" class="w-full bg-slate-950 border border-slate-800 p-5 rounded-3xl text-sm text-yellow-100/80 focus:border-yellow-600 outline-none h-28"></textarea>
             </div>
 
             <div class="space-y-4">
-                <button onclick="confirmQuest(true)" class="w-full gold-gradient p-5 rounded-2xl font-900 text-slate-950 shadow-xl active:scale-95 transition-all uppercase text-sm">ZALICZ QUEST (+10G)</button>
-                <button onclick="confirmQuest(false)" class="w-full bg-slate-800 p-4 rounded-2xl font-bold text-slate-500 active:scale-95 transition-all text-xs uppercase tracking-widest">Odłóż na później</button>
+                <button onclick="confirmQuest(true)" class="w-full gold-gradient p-6 rounded-3xl font-900 text-slate-950 shadow-2xl active:scale-95 transition-all uppercase text-xs tracking-widest">ZALICZ QUEST (+10G)</button>
+                <button onclick="confirmQuest(false)" class="w-full bg-slate-800 p-5 rounded-3xl font-bold text-slate-500 active:scale-95 transition-all text-[10px] uppercase tracking-widest">Odłóż na później</button>
             </div>
         </div>
     </div>
 
-    <nav class="fixed bottom-0 left-0 right-0 bg-slate-950/80 border-t border-slate-900 p-4 flex justify-around backdrop-blur-2xl z-40">
-        <button onclick="navTo('home')" id="nav-home" class="flex flex-col items-center gap-1 active-tab">
-            <span class="text-2xl">⚔️</span><span class="text-[9px] uppercase font-bold tracking-tighter">Mapa</span>
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-950/90 border-t border-slate-900 p-5 pb-8 flex justify-around backdrop-blur-2xl z-40">
+        <button onclick="navTo('home')" id="nav-home" class="flex flex-col items-center gap-1">
+            <span class="text-2xl">⚔️</span><span class="text-[10px] uppercase font-bold tracking-tighter opacity-50">Mapa</span>
         </button>
         <button onclick="navTo('log')" id="nav-log" class="flex flex-col items-center gap-1">
-            <span class="text-2xl">📜</span><span class="text-[9px] uppercase font-bold tracking-tighter">Log</span>
+            <span class="text-2xl">📜</span><span class="text-[10px] uppercase font-bold tracking-tighter opacity-50">Log</span>
         </button>
         <button onclick="navTo('rules')" id="nav-rules" class="flex flex-col items-center gap-1">
-            <span class="text-2xl">⚙️</span><span class="text-[9px] uppercase font-bold tracking-tighter">Opcje</span>
+            <span class="text-2xl">⚙️</span><span class="text-[10px] uppercase font-bold tracking-tighter opacity-50">Opcje</span>
         </button>
     </nav>
 
@@ -189,10 +203,15 @@
         const SB_KEY = "sb_publishable_E8Q0-npWxiMAXhHJ4jOONA_jtSYRku9";
         const sb = supabase.createClient(SB_URL, SB_KEY);
 
-        // --- AUDIO ENGINE ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSfx(type) {
+        // --- iOS AUDIO SYSTEM ---
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSfx(type) {
+            initAudio();
             const osc = audioCtx.createOscillator();
             const g = audioCtx.createGain();
             osc.connect(g); g.connect(audioCtx.destination);
@@ -203,6 +222,15 @@
                 osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
                 g.gain.setValueAtTime(0.1, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
                 osc.start(now); osc.stop(now + 0.3);
+            } else if (type === 'fail') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.5);
+                g.gain.setValueAtTime(0.1, now); g.gain.linearRampToValueAtTime(0.001, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            } else if (type === 'click') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(180, now);
+                g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now); osc.stop(now + 0.05);
             } else if (type === 'ach') {
                 [440, 554, 659, 880].forEach((f, i) => {
                     const o = audioCtx.createOscillator(); const gain = audioCtx.createGain();
@@ -212,26 +240,16 @@
                     gain.gain.exponentialRampToValueAtTime(0.01, now + (i * 0.1) + 0.4);
                     o.start(now + (i * 0.1)); o.stop(now + (i * 0.1) + 0.4);
                 });
-            } else if (type === 'fail') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(220, now);
-                osc.frequency.exponentialRampToValueAtTime(110, now + 0.4);
-                g.gain.setValueAtTime(0.1, now);
-                g.gain.linearRampToValueAtTime(0.001, now + 0.5);
-                osc.start(now); osc.stop(now + 0.5);
-            } else if (type === 'click') {
-                osc.type = 'sine'; osc.frequency.setValueAtTime(150, now);
-                g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-                osc.start(now); osc.stop(now + 0.05);
             }
         }
 
+        // --- GAME DATA ---
         const catData = {
             "Character Creator": { icon: "👤", stat: "Identity", desc: "Buildy, cechy OP i ewolucja postaci." },
-            "Ping Test": { icon: "📡", stat: "Communication", desc: "Optymalizacja komunikacji i eliminacja lagów." },
-            "Daily Questy": { icon: "☕", stat: "Daily Buffs", desc: "Małe rytuały bliskości odnawiające manę." },
-            "Late Game": { icon: "🏰", stat: "Vision", desc: "Strategia na najwyższy level i wspólna baza." },
-            "Hardcore Mode": { icon: "🛡️", stat: "Stability", desc: "Survival mode i trudne walki z bossami." },
+            "Ping Test": { icon: "📡", stat: "Communication", desc: "Komunikacja i eliminacja lagów." },
+            "Daily Questy": { icon: "☕", stat: "Daily Buffs", desc: "Rytuały bliskości odnawiające manę." },
+            "Late Game": { icon: "🏰", stat: "Vision", desc: "Wspólna baza i strategia na najwyższy level." },
+            "Hardcore Mode": { icon: "🛡️", stat: "Stability", desc: "Zarządzanie kryzysowe i trudne tematy." },
             "Secret Levels": { icon: "🔑", stat: "Intimacy", desc: "Ukryte mapy bliskości dla graczy premium." }
         };
 
@@ -249,7 +267,9 @@
         let state = { gold: 0, completed_ids: [], achievements: {}, notes: {}, room_key: localStorage.getItem('duo_quest_room') || "" };
         let activeQ = null;
 
+        // --- CORE LOGIC ---
         async function connectToRoom() {
+            initAudio();
             const key = document.getElementById('room-key-input').value.trim();
             if(!key) return;
             const { data } = await sb.from('game_sessions').select('*').eq('room_key', key).single();
@@ -269,33 +289,21 @@
             await sb.from('game_sessions').update({ gold: state.gold, completed_ids: state.completed_ids, achievements: state.achievements, notes: state.notes }).eq('room_key', state.room_key);
         }
 
-        function triggerGoldAnim(x, y) {
-            playSfx('gold');
-            const anim = document.createElement('div');
-            anim.className = 'gold-anim';
-            anim.style.left = (x - 40) + 'px'; anim.style.top = (y - 30) + 'px';
-            anim.innerText = '+10 Gold 💰';
-            document.body.appendChild(anim);
-            setTimeout(() => anim.remove(), 1000);
-            if(navigator.vibrate) navigator.vibrate(50);
-        }
-
         function renderCats() {
             const grid = document.getElementById('categories-grid'); grid.innerHTML = '';
-            const cats = ["Character Creator", "Ping Test", "Daily Questy", "Late Game", "Hardcore Mode", "Secret Levels"];
-            cats.forEach(cat => {
+            ["Character Creator", "Ping Test", "Daily Questy", "Late Game", "Hardcore Mode", "Secret Levels"].forEach(cat => {
                 const qInCat = questions.filter(q => q.category === cat);
                 const doneCount = qInCat.filter(q => state.completed_ids.includes(q.id)).length;
                 const progress = Math.round((doneCount / (qInCat.length || 1)) * 100);
                 grid.innerHTML += `
-                    <div class="bg-card p-6 rounded-[2rem] flex items-center gap-5 gold-glow transition-all active:scale-[0.98]">
+                    <div class="bg-card p-6 rounded-[2rem] flex items-center gap-5 transition-all active:scale-[0.98]">
                         <div class="text-4xl p-3 bg-slate-900/50 rounded-2xl flex-shrink-0">${catData[cat].icon}</div>
                         <div class="flex-1 min-w-0 text-left">
                             <h3 class="font-900 text-[10px] uppercase tracking-widest text-yellow-600 mb-1 leading-none text-left">${cat}</h3>
                             <p class="text-[11px] text-slate-500 leading-tight mb-3 text-left">${catData[cat].desc}</p>
                             <div class="flex items-center gap-3">
                                 <span class="text-2xl font-black text-white italic">${progress}%</span>
-                                <div class="flex-1 bg-slate-800 h-1.5 rounded-full overflow-hidden"><div class="bg-yellow-600 h-full transition-all duration-500" style="width: ${progress}%"></div></div>
+                                <div class="flex-1 bg-slate-800 h-1 rounded-full overflow-hidden"><div class="bg-yellow-600 h-full transition-all duration-500" style="width: ${progress}%"></div></div>
                             </div>
                         </div>
                         <button onclick="draw('${cat}')" class="bg-yellow-600/10 border border-yellow-600/20 text-yellow-500 px-4 py-3 rounded-xl font-900 text-[10px] uppercase">START</button>
@@ -311,12 +319,12 @@
             const tree = document.getElementById('skill-tree'); tree.innerHTML = '';
             for(let [name, val] of Object.entries(stats)) {
                 const max = questions.filter(q => catData[q.category].stat === name).length || 1;
-                tree.innerHTML += `<div class="space-y-1 text-left"><div class="flex justify-between text-[10px] uppercase font-bold tracking-widest text-slate-400 text-left"><span>${name}</span><span>Lvl ${val}</span></div><div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden"><div class="bg-yellow-500 h-full transition-all duration-1000" style="width: ${Math.round(val/max*100)}%"></div></div></div>`;
+                tree.innerHTML += `<div class="space-y-1 text-left"><div class="flex justify-between text-[10px] uppercase font-bold tracking-widest text-slate-400"><span>${name}</span><span>Lvl ${val}</span></div><div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden"><div class="bg-yellow-500 h-full transition-all duration-1000" style="width: ${Math.round(val/max*100)}%"></div></div></div>`;
             }
             const tGrid = document.getElementById('trophy-grid'); tGrid.innerHTML = '';
             achDefs.forEach(ach => {
                 const isUnlocked = state.achievements[ach.id];
-                tGrid.innerHTML += `<div class="flex flex-col items-center gap-1"><div class="text-2xl p-2 rounded-xl bg-slate-900/50 ${isUnlocked ? 'opacity-100 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'grayscale opacity-20'}">${ach.icon}</div><span class="text-[8px] uppercase font-bold text-slate-500 text-center leading-none text-left">${isUnlocked ? ach.name : '???'}</span></div>`;
+                tGrid.innerHTML += `<div class="flex flex-col items-center gap-1"><div class="text-2xl p-2 rounded-xl bg-slate-900/50 ${isUnlocked ? 'opacity-100 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'grayscale opacity-20'}">${ach.icon}</div><span class="text-[8px] uppercase font-bold text-slate-500 text-center leading-none">${isUnlocked ? ach.name : '???'}</span></div>`;
             });
             const arc = document.getElementById('quest-archive'); arc.innerHTML = '';
             ["Character Creator", "Ping Test", "Daily Questy", "Late Game", "Hardcore Mode", "Secret Levels"].forEach(cat => {
@@ -324,7 +332,7 @@
                 let html = `<h3 class="text-[10px] font-900 text-yellow-600 uppercase tracking-[0.3em] mb-4 px-2 text-left">${cat}</h3><div class="space-y-3">`;
                 qs.forEach(q => {
                     const done = state.completed_ids.includes(q.id); const note = state.notes[q.id];
-                    html += `<div class="bg-slate-900/40 p-5 rounded-2xl text-[13px] border-l-2 text-left ${done ? 'border-green-900 bg-green-900/5' : 'border-slate-700 opacity-40'}"><p class="text-left">${q.text}</p>${note ? `<div class="mt-3 p-3 bg-yellow-500/5 border border-yellow-500/10 rounded-xl text-yellow-200/70 italic text-xs text-left">" ${note} "</div>` : ''}</div>`;
+                    html += `<div class="bg-slate-900/40 p-5 rounded-2xl text-[13px] border-l-2 text-left ${done ? 'border-green-900 bg-green-900/5' : 'border-slate-700 opacity-40'}"><p>${q.text}</p>${note ? `<div class="mt-4 p-4 bg-yellow-500/5 border border-yellow-500/10 rounded-2xl text-yellow-200/70 italic text-xs text-left">" ${note} "</div>` : ''}</div>`;
                 }); arc.innerHTML += html + `</div>`;
             });
         }
@@ -335,12 +343,13 @@
                 const note = noteInput.value.trim();
                 state.completed_ids.push(activeQ.id); state.gold += 10;
                 if(note) state.notes[activeQ.id] = note;
-                triggerGoldAnim(window.innerWidth/2, window.innerHeight/2);
+                playSfx('gold');
                 confetti({ particleCount: 150, spread: 70, origin: { y: 0.8 }, colors: ['#fbbf24', '#ffffff'] });
                 checkAchievements(); await save(); noteInput.value = '';
             } else {
                 playSfx('fail');
-                if(navigator.vibrate) navigator.vibrate([100, 50, 100]); // Smutna wibracja
+                document.getElementById('modal-container').classList.add('shake');
+                setTimeout(() => document.getElementById('modal-container').classList.remove('shake'), 4000);
             }
             document.getElementById('modal').classList.add('hidden'); updateUI();
         }
@@ -361,6 +370,7 @@
         }
 
         function navTo(page) {
+            initAudio();
             ['home', 'rules', 'log'].forEach(p => { document.getElementById('page-'+p).classList.add('hidden'); document.getElementById('nav-'+p).classList.remove('active-tab'); });
             document.getElementById('page-'+page).classList.remove('hidden'); document.getElementById('nav-'+page).classList.add('active-tab');
             if(page === 'log') renderLog(); if(page === 'home') renderCats();
@@ -368,6 +378,7 @@
         }
 
         function draw(cat) {
+            initAudio();
             const pool = questions.filter(q => q.category === cat && !state.completed_ids.includes(q.id));
             if(pool.length === 0) return alert("Poziom ukończony!");
             activeQ = pool[Math.floor(Math.random() * pool.length)];
@@ -376,8 +387,9 @@
         }
 
         function drawAll() {
+            initAudio();
             const pool = questions.filter(q => !state.completed_ids.includes(q.id));
-            if(pool.length === 0) return alert("Wszystkie questy ukończone!");
+            if(pool.length === 0) return alert("Wszystko ukończone!");
             activeQ = pool[Math.floor(Math.random() * pool.length)];
             document.getElementById('modal-cat').innerText = activeQ.category; document.getElementById('modal-text').innerText = activeQ.text;
             document.getElementById('modal').classList.remove('hidden'); playSfx('click');
